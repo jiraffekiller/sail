@@ -1,0 +1,11 @@
+name: Feature request
+description: Suggest a change
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like Sail to do
+      description: Sail deliberately does two things. Explain how the idea fits Sailing mode or heat protection, or why it belongs anyway.
+    validations:
+      required: true

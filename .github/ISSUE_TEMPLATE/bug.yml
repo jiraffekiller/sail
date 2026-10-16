@@ -1,0 +1,33 @@
+name: Bug report
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of `--status`
+      description: Run `/Applications/Sail.app/Contents/MacOS/Sail --status` and paste the output.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: mac
+    attributes:
+      label: Mac and macOS version
+      placeholder: MacBook Air M3, macOS 27.0.1
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: Optimized Battery Charging is off in System Settings
+        - label: No other charge limiter (AlDente, batt) is running

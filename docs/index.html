@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How macOS 27 broke charge limiters, and the mechanism that still works</title>
+<meta name="description" content="Apple gated the SMC keys every battery limiter used. The manual charge limit in powerd still works, below 80% too. Notes from building Sail, an open-source limiter for Apple Silicon MacBooks.">
+<meta property="og:title" content="How macOS 27 broke charge limiters, and the mechanism that still works">
+<meta property="og:description" content="The SMC keys are gone. powerd's manual charge limit is not, and it takes any value. Notes from building Sail.">
+<meta property="og:image" content="https://jiraffekiller.github.io/sail/social.png">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛵</text></svg>">
+<style>
+  :root { --bg:#07101e; --bg2:#0d1f3c; --fg:#f2f6fb; --dim:#9fb2c9; --accent:#4fb2ff; --green:#30d158; --card:rgba(255,255,255,.05); --line:rgba(255,255,255,.12); }
+  * { box-sizing:border-box; }
+  html { background:var(--bg); }
+  body { margin:0; color:var(--fg); font:17px/1.65 -apple-system, "SF Pro Text", system-ui, Inter, sans-serif; background:linear-gradient(62deg,#07101e 0%,#0d1f3c 55%,#163a66 100%) fixed; -webkit-font-smoothing:antialiased; }
+  main { max-width:760px; margin:0 auto; padding:56px 20px 96px; }
+  header { margin-bottom:40px; }
+  .eyebrow { color:var(--accent); font-weight:600; letter-spacing:.04em; text-transform:uppercase; font-size:13px; }
+  h1 { font-size:clamp(30px,5vw,44px); line-height:1.12; letter-spacing:-.02em; margin:10px 0 14px; }
+  .lede { color:var(--dim); font-size:19px; }
+  .meta { color:var(--dim); font-size:14px; margin-top:14px; }
+  h2 { font-size:26px; letter-spacing:-.015em; margin:48px 0 12px; }
+  h3 { font-size:19px; margin:30px 0 8px; }
+  p, li { color:#e2e9f3; }
+  a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+  code, pre { font-family:"SF Mono", ui-monospace, Menlo, monospace; font-size:.92em; }
+  code { background:rgba(255,255,255,.08); padding:2px 6px; border-radius:6px; }
+  pre { background:rgba(0,0,0,.4); border:1px solid var(--line); border-radius:14px; padding:16px 18px; overflow:auto; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; font-size:15px; margin:14px 0; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--dim); font-weight:600; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px 22px; margin:22px 0; }
+  .shots { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:24px 0; }
+  .shots img { width:100%; border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,.45); }
+  @media (max-width:640px) { .shots { grid-template-columns:1fr; } }
+  .video { position:relative; padding-top:56.25%; border-radius:16px; overflow:hidden; margin:24px 0; box-shadow:0 20px 50px rgba(0,0,0,.45); }
+  .video iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .install { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:18px 0; }
+  .btn { display:inline-block; padding:12px 18px; border-radius:12px; font-weight:600; background:var(--accent); color:#06182b; }
+  .btn.ghost { background:rgba(255,255,255,.08); color:var(--fg); border:1px solid var(--line); }
+  footer { margin-top:64px; color:var(--dim); font-size:14px; border-top:1px solid var(--line); padding-top:20px; }
+  .ok { color:var(--green); } .bad { color:#ff9f0a; }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div class="eyebrow">Sail · field notes</div>
+  <h1>How macOS 27 broke charge limiters, and the mechanism that still works</h1>
+  <p class="lede">Every battery limiter for Apple Silicon used to flip a handful of SMC keys. Current firmware has removed or locked all of them. The manual charge limit built into <code>powerd</code> is the one path left, and it turns out to accept any value, not just the 80–100&nbsp;% System Settings shows.</p>
+  <div class="meta">October 2026 · measured on a MacBook Air (M3), macOS 27.0.1, firmware 20457.1.29</div>
+</header>
+
+<p>I wanted two things from a charge limiter: <strong>sailing mode</strong> (charge to 70, hold, do not top up again until the battery drains to 60) and <strong>heat protection</strong> (pause charging while the battery is hot). After the macOS 27 update the limiter I was using stopped holding its limit, so I went looking for what actually controls charging on current firmware. This is what I found, and what <a href="https://github.com/jiraffekiller/sail">Sail</a> is built on.</p>
+
+<div class="video"><iframe src="https://www.youtube.com/embed/S5vgsyXmuWg" title="Sail in 50 seconds" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+
+<h2>1. The SMC keys are gone</h2>
+<p>For years limiters wrote to the SMC: <code>CH0B</code>/<code>CH0C</code> to stop charging, <code>CH0I</code> to cut wall power, later <code>CHTE</code> on newer chips, and <code>BCLM</code> on Intel. A read-only enumeration of the SMC on firmware 20457 shows:</p>
+<table>
+<tr><th>Key</th><th>Result</th></tr>
+<tr><td><code>CH0B CH0C CHTE CH0I BCLM CHWA</code></td><td class="bad">Absent (SMC result <code>0x84</code>, key not found)</td></tr>
+<tr><td><code>bfF0 bfD0 bfE0 CH0J CHLS</code> (firmware limit)</td><td class="bad">Present, but every access returns <code>kIOReturnNotPrivileged</code>, even as root. Gated behind a private entitlement.</td></tr>
+<tr><td><code>CHIE</code> (disable adapter input)</td><td>Present and writable by root, but the Mac then runs from the battery and keeps draining through sleep. A blunt instrument.</td></tr>
+<tr><td><code>TB0T TB1T TB2T</code> (battery thermistors)</td><td class="ok">Readable by any user, °C as float. The only temperature source: the IORegistry battery entry exposes none.</td></tr>
+</table>
+<p>So the two classic approaches, "stop charging" and "write a firmware limit", are both closed to third parties. What is left is whatever Apple's own UI uses.</p>
+
+<h2>2. The native limit lives in powerd</h2>
+<p>macOS 26.4 added a manual charge limit to System Settings → Battery. Behind it is a private framework, <code>PowerUI.framework</code>, with a class <code>PowerUISmartChargeClient</code> that talks over XPC to <code>PowerUIAgent</code> (root). The useful selectors, found with the Objective-C runtime:</p>
+<pre><code>enableMCL:   setMCLLimit:error:   getMCLLimitWithError:   isMCLCurrentlyEnabled:
+isMCLSupported   smartChargingUIState:chargeLimit:chargingOverrideAllowed:withError:</code></pre>
+<p>Two facts matter. First, the XPC entry point works <strong>from an ordinary user process with no entitlements</strong>. Second, it validates the value: anything from 80 to 100 is accepted (not only the five steps the UI shows), anything below 80 is rejected with error code 4.</p>
+<p><code>powerd</code> persists the result in <code>/Library/Preferences/com.apple.powerd.charging.plist</code> as a <code>ChargeCtrlPolicy</code> owned by PowerUIAgent, which is why the limit outlives the client and survives sleep: firmware enforces it, not the app.</p>
+
+<h2>3. Below 80 % the floor is only in the front door</h2>
+<p>PowerUIAgent keeps its own state in root's preferences domain <code>com.apple.smartcharging.topoffprotection</code>. The limit is the key <code>mclLimitValue</code>. Write it as root and post the Darwin notification that PowerUIAgent listens for, and the 80 % floor disappears:</p>
+<pre><code>defaults write com.apple.smartcharging.topoffprotection mclLimitValue -int 60
+notifyutil -p com.apple.smartcharging.defaultschanged</code></pre>
+<p>Within seconds <code>getMCLLimit</code> reports 60 and the policy follows. This is also how the current version of the limiter I had been using reaches values below 80: its root helper writes exactly these preferences.</p>
+
+<h2>4. What a limit actually does</h2>
+<p>I expected "limit" to mean "stop charging here". It means more: <code>powerd</code> steers the battery <em>to</em> the value, in both directions.</p>
+<div class="card">
+<table>
+<tr><th>Battery vs limit</th><th>Behaviour</th><th>Signals</th></tr>
+<tr><td>below</td><td>charges, stops at the limit</td><td><code>uiState 13</code>; at the limit <code>NotChargingReason = 0x01000000</code></td></tr>
+<tr><td>at</td><td>holds, amperage 0</td><td><code>uiState 14</code></td></tr>
+<tr><td>above</td><td><strong>discharges</strong> to the limit (−600 mA, adapter input drops to ~0.3 W)</td><td><code>uiState 16</code></td></tr>
+</table>
+</div>
+<p>Measured on the reference machine: 75 → 80 charged and stopped cleanly; 82 with limit 80 drained; 82 with limit 82 held; as root, 79 → 78 drained and 78 → 79 charged back up. One primitive, <em>set limit n</em>, covers charging, holding and discharging for any n in 1…100.</p>
+<p>The consequence for a controller: never set a value below the current charge unless you want a discharge. "Hold" is <em>limit = current percent</em>.</p>
+
+<h2>5. Sailing mode on top of this</h2>
+<pre><code>phase charging : limit = upper          # powerd stops at upper
+   percent >= upper          -> holding
+phase holding  : limit = percent        # follow the battery down, never top up
+   percent <= lower          -> charging
+heat hold      : limit = percent while battery temp >= Tmax (hysteresis on the way back)
+safety floor   : below 20 % always charge</code></pre>
+<p>The app is a desired-state loop: every 30&nbsp;s and on every power event it samples the battery, asks this policy for the limit, reads back what <code>powerd</code> enforces, and writes only on a difference. It only has to be awake at phase transitions; between them firmware does the work.</p>
+
+<div class="shots">
+  <img src="menu.png" alt="Sail menu with Sailing mode and Heat protection sliders">
+  <img src="setup.png" alt="Sail setup window with compatibility checks and self-test">
+</div>
+
+<h2>6. What it cannot do</h2>
+<ul>
+<li>Intel Macs and macOS before 26.4: the mechanism does not exist there.</li>
+<li>macOS runs its own periodic calibration that charges to 100&nbsp;% regardless of any limit. Nothing stops it; Sail holds at the new level afterwards and resumes sailing.</li>
+<li>Optimized Battery Charging and other limiters must be off, or two policies fight over the same value.</li>
+<li>It is a private API. It is the same one System Settings uses, which makes it the most stable private surface available, and Sail's self-test tells you when a macOS update breaks it instead of letting the battery quietly fill up.</li>
+</ul>
+
+<h2>Try it</h2>
+<p>Sail is free and open source (GPL-3.0), Swift, no dependencies. Apple Silicon, macOS 26.4 or newer.</p>
+<div class="install">
+  <a class="btn" href="https://github.com/jiraffekiller/sail/releases/latest">Download the DMG</a>
+  <a class="btn ghost" href="https://github.com/jiraffekiller/sail">Source on GitHub</a>
+</div>
+<pre><code>brew install --cask jiraffekiller/tap/sail-battery</code></pre>
+<p>The full design document with every measurement is in the repository: <a href="https://github.com/jiraffekiller/sail/blob/main/docs/DESIGN.md">docs/DESIGN.md</a>.</p>
+
+<footer>© 2026 JiraffeKiller · Built with help from Claude Code · Not affiliated with Apple.</footer>
+</main>
+</body>
+</html>

@@ -36,7 +36,9 @@ be re-run; the self-test writes the limit and confirms that macOS enforces it.
 - Not running at the same time as AlDente or batt.
 
 Intel Macs and older macOS are not supported: the charge-control keys they used are gone
-or locked on current firmware. See [docs/DESIGN.md](docs/DESIGN.md) for the measurements.
+or locked on current firmware. The story and the measurements: [How macOS 27 broke charge
+limiters, and the mechanism that still works](https://jiraffekiller.github.io/sail/), with the
+full design document in [docs/DESIGN.md](docs/DESIGN.md). Plans are in [ROADMAP.md](ROADMAP.md).
 
 ## Install
 
