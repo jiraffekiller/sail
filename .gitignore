@@ -2,3 +2,8 @@
 build/
 *.xcodeproj
 .DS_Store
+
+# HyperFrames promo project artifacts
+scripts/promo/sail-promo/renders/
+scripts/promo/sail-promo/.hyperframes/
+scripts/promo/sail-promo/node_modules/

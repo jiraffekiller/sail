@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #07101e; }
+      #root {
+        position: relative; width: 1920px; height: 1080px; overflow: hidden;
+        font-family: -apple-system, "SF Pro Display", "SF Pro Text", system-ui, Inter, sans-serif;
+        color: #fff;
+        background: linear-gradient(62deg, #07101e 0%, #0d1f3c 55%, #163a66 100%);
+      }
+      .clip { position: absolute; inset: 0; }
+      .scene { opacity: 0; }
+      .h1 { position: absolute; font-size: 88px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; }
+      .h2 { position: absolute; font-size: 44px; font-weight: 400; line-height: 1.35; color: rgba(255,255,255,0.92); }
+      .dim { color: rgba(255,255,255,0.6); }
+      .accent { color: #4fb2ff; }
+      .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+      .shot { position: absolute; border-radius: 22px; box-shadow: 0 30px 80px rgba(0,0,0,0.55); overflow: hidden; }
+      .shot img { display: block; }
+      .hl { position: absolute; border: 3px solid #4fb2ff; border-radius: 14px; box-shadow: 0 0 0 6px rgba(79,178,255,0.18), 0 0 40px rgba(79,178,255,0.35); opacity: 0; }
+      .label { position: absolute; font-size: 30px; font-weight: 500; color: rgba(255,255,255,0.8); }
+      .badge { position: absolute; padding: 10px 26px; border-radius: 999px; font-size: 34px; font-weight: 700; letter-spacing: 0.04em; opacity: 0; }
+      /* waves */
+      #waves { position: absolute; left: 0; bottom: 0; width: 1920px; height: 260px; opacity: 0.35; }
+      /* battery (scene 2/3) */
+      .battery { position: absolute; }
+      .battery .case { position: absolute; left: 0; top: 0; border: 8px solid rgba(255,255,255,0.85); border-radius: 48px; }
+      .battery .cap { position: absolute; width: 26px; height: 90px; border-radius: 0 12px 12px 0; background: rgba(255,255,255,0.85); }
+      .battery .fill { position: absolute; left: 18px; top: 18px; height: calc(100% - 36px); border-radius: 32px; background: linear-gradient(90deg, #2ecc71, #30d158); width: 0%; }
+      .battery .pct { position: absolute; font-size: 150px; font-weight: 700; letter-spacing: -0.03em; }
+      /* gauge (scene 4) */
+      .gauge { position: absolute; left: 150px; top: 440px; width: 880px; height: 110px; border-radius: 55px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.18); }
+      .gauge .gfill { position: absolute; left: 0; top: 0; bottom: 0; width: 55%; border-radius: 55px; background: linear-gradient(90deg, #2ecc71, #30d158); }
+      .bound { position: absolute; top: 400px; width: 0; height: 190px; border-left: 4px dashed rgba(255,255,255,0.7); }
+      .bound span { position: absolute; width: 320px; font-size: 28px; color: rgba(255,255,255,0.85); white-space: nowrap; }
+      #b60 span { top: 200px; left: -332px; text-align: right; }
+      #b70 span { top: -46px; left: 12px; text-align: left; }
+      .gpct { position: absolute; left: 150px; top: 250px; font-size: 140px; font-weight: 700; letter-spacing: -0.03em; }
+      .state { position: absolute; left: 160px; top: 650px; font-size: 40px; font-weight: 500; color: rgba(255,255,255,0.9); opacity: 0; }
+      /* thermometer */
+      .thermo { position: absolute; left: 240px; top: 300px; width: 90px; height: 520px; }
+      .thermo .tube { position: absolute; left: 20px; top: 0; width: 50px; height: 440px; border-radius: 25px; background: rgba(255,255,255,0.12); border: 3px solid rgba(255,255,255,0.3); overflow: hidden; }
+      .thermo .merc { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: linear-gradient(0deg, #ff6b4a, #ff9f0a); }
+      .thermo .bulb { position: absolute; left: 0; top: 410px; width: 90px; height: 90px; border-radius: 50%; background: #ff6b4a; border: 3px solid rgba(255,255,255,0.3); }
+      .temp { position: absolute; left: 380px; top: 420px; font-size: 140px; font-weight: 700; letter-spacing: -0.03em; }
+      .icon { position: absolute; width: 140px; height: 140px; }
+      /* powerd chip */
+      .chip { position: absolute; left: 700px; top: 400px; width: 520px; height: 300px; border-radius: 36px; background: rgba(255,255,255,0.08); border: 2px solid rgba(79,178,255,0.6); box-shadow: 0 0 60px rgba(79,178,255,0.25); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      .chip .name { font-size: 34px; color: rgba(255,255,255,0.7); font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+      .chip .val { font-size: 140px; font-weight: 700; letter-spacing: -0.03em; color: #30d158; }
+      .sat { position: absolute; width: 300px; text-align: center; opacity: 0; }
+      .sat svg { width: 150px; height: 150px; }
+      .sat div { font-size: 30px; color: rgba(255,255,255,0.85); margin-top: 12px; }
+      /* terminal */
+      .term { position: absolute; left: 160px; top: 430px; width: 1600px; height: 220px; border-radius: 24px; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.14); padding: 40px 48px; font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 42px; line-height: 1.6; }
+      .term .caret { display: inline-block; width: 22px; height: 46px; background: #fff; vertical-align: -6px; margin-left: 4px; }
+      .term .ok { color: #30d158; opacity: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="53" data-width="1920" data-height="1080" data-fps="30">
+
+      <!-- persistent sea waves -->
+      <svg id="waves" class="clip" data-start="0" data-duration="53" viewBox="0 0 1920 260" preserveAspectRatio="none">
+        <path id="w1" d="M0 160 C 240 100, 480 220, 720 160 S 1200 100, 1440 160 S 1920 220, 2160 160 S 2640 100, 2880 160 V 260 H 0 Z" fill="rgba(79,178,255,0.25)"/>
+        <path id="w2" d="M0 190 C 300 140, 600 240, 900 190 S 1500 140, 1800 190 S 2400 240, 2700 190 S 3300 140, 3600 190 V 260 H 0 Z" fill="rgba(79,178,255,0.18)"/>
+      </svg>
+
+      <!-- S1 title -->
+      <section id="s1" class="clip scene" data-start="0" data-duration="6.3" data-track-index="1">
+        <img id="s1icon" src="assets/icon.png" style="position:absolute; left:560px; top:380px; width:300px; height:300px; opacity:0;">
+        <div id="s1title" class="h1" style="left:900px; top:400px; font-size:190px; line-height:1;">
+          <span class="ch">S</span><span class="ch">a</span><span class="ch">i</span><span class="ch">l</span>
+        </div>
+        <div id="s1sub" class="h2 dim" style="left:906px; top:620px; font-size:42px; opacity:0;">Battery charge limiter for Apple Silicon MacBooks</div>
+      </section>
+
+      <!-- S2 problem -->
+      <section id="s2" class="clip scene" data-start="6" data-duration="6.7" data-track-index="1">
+        <div id="s2h" class="h1" style="left:150px; top:200px; opacity:0;">macOS can limit charging.</div>
+        <div id="s2h2" class="h1" style="left:150px; top:310px; opacity:0; color: rgba(255,255,255,0.55);">System Settings stops at 80&nbsp;%.</div>
+        <div class="battery" style="left:420px; top:520px; width:900px; height:300px;">
+          <div class="case" style="width:900px; height:300px;"></div>
+          <div class="cap" style="left:906px; top:105px;"></div>
+          <div id="s2fill" class="fill"></div>
+          <div id="s2hatch" style="position:absolute; left:18px; top:18px; width:0; height:264px; border-radius:32px 0 0 32px; background: repeating-linear-gradient(135deg, rgba(255,255,255,0.08) 0 14px, rgba(255,255,255,0.02) 14px 28px); opacity:0;"></div>
+          <div id="s2pct" class="pct" style="left:1000px; top:60px;">0%</div>
+        </div>
+        <div id="s2range" class="label" style="left:1125px; top:470px; opacity:0; color:#4fb2ff; font-weight:600;">80–100&nbsp;% only</div>
+        <div id="s2lock" class="label dim" style="left:470px; top:470px; opacity:0;">below 80 %: not available</div>
+      </section>
+
+      <!-- S3 same mechanism, any limit -->
+      <section id="s3" class="clip scene" data-start="12.4" data-duration="5.6" data-track-index="1">
+        <div id="s3h" class="h1" style="left:150px; top:200px; opacity:0;">Same mechanism.<br><span class="accent">Any limit.</span></div>
+        <div class="battery" style="left:420px; top:520px; width:900px; height:300px;">
+          <div class="case" style="width:900px; height:300px;"></div>
+          <div class="cap" style="left:906px; top:105px;"></div>
+          <div id="s3fill" class="fill" style="width:80%;"></div>
+          <div id="s3pct" class="pct" style="left:1000px; top:60px;">80%</div>
+        </div>
+        <div id="s3sub" class="h2 dim" style="left:470px; top:860px; opacity:0;">Sail writes the limit powerd already enforces — from 1 to 100 %.</div>
+      </section>
+
+      <!-- S4 sailing -->
+      <section id="s4" class="clip scene" data-start="17.5" data-duration="10.2" data-track-index="1">
+        <div id="s4h" class="h1" style="left:150px; top:120px; opacity:0;">Sailing mode</div>
+        <div id="s4pct" class="gpct">55%</div>
+        <div class="gauge"><div id="s4fill" class="gfill"></div></div>
+        <div id="b60" class="bound" style="left:678px; opacity:0;"><span>Recharge below 60 %</span></div>
+        <div id="b70" class="bound" style="left:766px; opacity:0;"><span>Charge to 70 %</span></div>
+        <div id="s4state" class="state">Charging…</div>
+        <div id="s4hold" class="badge" style="left:160px; top:640px; background:#30d158; color:#06260f;">HOLD</div>
+        <div id="s4bat" class="state" style="top:720px; width:900px; font-size:34px; line-height:1.3; color:rgba(255,255,255,0.7);">On battery, the limit follows you down.<br>Plug back in: no top-up until 60 %.</div>
+      </section>
+
+      <!-- S5 heat -->
+      <section id="s5" class="clip scene" data-start="27.2" data-duration="4.8" data-track-index="1">
+        <div id="s5h" class="h1" style="left:150px; top:120px; opacity:0;">Heat protection</div>
+        <div class="thermo"><div class="tube"><div id="merc" class="merc"></div></div><div class="bulb"></div></div>
+        <div id="s5temp" class="temp">28°</div>
+        <svg id="s5bolt" class="icon" style="left:720px; top:450px;" viewBox="0 0 24 24" fill="#30d158"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+        <svg id="s5pause" class="icon" style="left:720px; top:450px; opacity:0;" viewBox="0 0 24 24" fill="#ff9f0a"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg>
+        <div id="s5lbl" class="label" style="left:390px; top:640px; opacity:0;">Pause above 35 °C · resume a few degrees lower</div>
+      </section>
+
+      <!-- menu screenshot, spans S4 + S5 -->
+      <div id="menu" class="clip" data-start="17.5" data-duration="14.5" data-track-index="2" style="inset:auto; left:1140px; top:120px; width:680px; height:849px; ">
+        <div class="shot" style="left:0; top:0; width:680px; height:849px;"><img src="assets/menu.png" style="width:680px; height:849px;"></div>
+        <div id="hlSail" class="hl" style="left:86px; top:226px; width:580px; height:110px;"></div>
+        <div id="hlHeat" class="hl" style="left:86px; top:346px; width:580px; height:110px;"></div>
+      </div>
+
+      <!-- S6 enforced -->
+      <section id="s6" class="clip scene" data-start="31.5" data-duration="8.6" data-track-index="1">
+        <div id="s6h" class="h1" style="left:150px; top:120px; opacity:0;">The limit lives in powerd</div>
+        <div id="chip" class="chip" style="opacity:0;"><div class="name">powerd · charge limit</div><div class="val">70%</div></div>
+        <div id="sat1" class="sat" style="left:300px; top:470px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#cfe6ff" stroke-width="1.6"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><div>Sleep</div></div>
+        <div id="sat2" class="sat" style="left:810px; top:740px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#cfe6ff" stroke-width="1.6"><rect x="3" y="5" width="18" height="11" rx="1.5"/><path d="M1 19h22"/></svg><div>Lid closed</div></div>
+        <div id="sat3" class="sat" style="left:1320px; top:470px;">
+          <img src="assets/icon.png" style="width:150px; height:150px; opacity:0.35; filter: grayscale(1);"><div>Sail not running</div></div>
+        <div id="s6sub" class="h2 dim" style="left:150px; top:960px; opacity:0;">Enforced by macOS itself. Sail only has to be awake to change it.</div>
+      </section>
+
+      <!-- S7 setup -->
+      <section id="s7" class="clip scene" data-start="39.6" data-duration="7.5" data-track-index="1">
+        <div id="s7h" class="h1" style="left:150px; top:200px; opacity:0;">Set up in a minute</div>
+        <div id="s7l1" class="h2" style="left:154px; top:380px; opacity:0;">✓&nbsp; Compatibility checks</div>
+        <div id="s7l2" class="h2" style="left:154px; top:450px; opacity:0;">✓&nbsp; One-time helper install</div>
+        <div id="s7l3" class="h2" style="left:154px; top:520px; opacity:0;">✓&nbsp; Self-test: macOS confirms the limit</div>
+        <div id="setup" style="position:absolute; left:1080px; top:90px; width:634px; height:900px;">
+          <div class="shot" style="left:0; top:0; width:634px; height:900px;"><img src="assets/setup.png" style="width:634px; height:900px;"></div>
+          <div id="hlCompat" class="hl" style="left:22px; top:156px; width:590px; height:236px;"></div>
+          <div id="hlHelper" class="hl" style="left:22px; top:406px; width:590px; height:80px;"></div>
+          <div id="hlTest" class="hl" style="left:22px; top:740px; width:590px; height:84px;"></div>
+        </div>
+      </section>
+
+      <!-- S8 install -->
+      <section id="s8" class="clip scene" data-start="46.6" data-duration="6.4" data-track-index="1">
+        <img src="assets/icon.png" style="position:absolute; left:160px; top:200px; width:150px; height:150px;">
+        <div id="s8h" class="h2" style="left:340px; top:215px; font-size:48px; font-weight:600; opacity:0;">Free and open source · GPL-3.0</div>
+        <div id="s8s" class="h2 dim" style="left:342px; top:280px; font-size:36px; opacity:0;">Apple Silicon · macOS 26.4 or newer</div>
+        <div class="term"><div><span class="dim">$ </span><span id="cmd"></span><span id="caret" class="caret"></span></div><div id="ok" class="ok">✔ Sail installed — open it from /Applications</div></div>
+        <div id="s8url" class="h2 accent" style="left:160px; top:720px; font-size:52px; font-weight:600; opacity:0;">github.com/jiraffekiller/sail</div>
+      </section>
+
+      <!-- voiceover -->
+      <audio id="vo1" data-start="0.4"  data-duration="5.3" data-track-index="5" data-volume="1" src="audio/vo-01.mp3"></audio>
+      <audio id="vo2" data-start="6.4"  data-duration="5.71" data-track-index="5" data-volume="1" src="audio/vo-02.mp3"></audio>
+      <audio id="vo3" data-start="12.8" data-duration="4.46" data-track-index="5" data-volume="1" src="audio/vo-03.mp3"></audio>
+      <audio id="vo4" data-start="17.9" data-duration="8.9" data-track-index="5" data-volume="1" src="audio/vo-04.mp3"></audio>
+      <audio id="vo5" data-start="27.6" data-duration="3.6" data-track-index="5" data-volume="1" src="audio/vo-05.mp3"></audio>
+      <audio id="vo6" data-start="31.9" data-duration="7.27" data-track-index="5" data-volume="1" src="audio/vo-06.mp3"></audio>
+      <audio id="vo7" data-start="40.0" data-duration="6.34" data-track-index="5" data-volume="1" src="audio/vo-07.mp3"></audio>
+      <audio id="vo8" data-start="47.0" data-duration="4.78" data-track-index="5" data-volume="1" src="audio/vo-08.mp3"></audio>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      const E = { out: "power3.out", inout: "power2.inOut", back: "back.out(1.6)" };
+      const fadeIn = (sel, t, d = 0.5) => tl.to(sel, { opacity: 1, duration: d, ease: E.out }, t);
+      const fadeOut = (sel, t, d = 0.5) => tl.to(sel, { opacity: 0, duration: d, ease: "power2.in" }, t);
+      const rise = (sel, t, d = 0.7, dy = 40) => tl.fromTo(sel, { opacity: 0, y: dy }, { opacity: 1, y: 0, duration: d, ease: E.out }, t);
+      // Numeric drivers keep text and widths in lockstep with timeline time.
+      const counter = (obj, key, to, d, t, ease, onUpdate) => tl.to(obj, { [key]: to, duration: d, ease, onUpdate }, t);
+
+      // waves drift for the whole film
+      tl.fromTo("#w1", { x: 0 }, { x: -960, duration: 53, ease: "none" }, 0);
+      tl.fromTo("#w2", { x: -300 }, { x: -1500, duration: 53, ease: "none" }, 0);
+
+      // ---------- S1 (0–6) ----------
+      tl.set("#s1", { opacity: 1 }, 0);
+      tl.fromTo("#s1icon", { opacity: 0, scale: 0.6, rotation: -8 }, { opacity: 1, scale: 1, rotation: 0, duration: 1.0, ease: E.back }, 0.2);
+      tl.fromTo("#s1title .ch", { opacity: 0, y: 90 }, { opacity: 1, y: 0, duration: 0.7, ease: E.out, stagger: 0.09 }, 0.55);
+      rise("#s1sub", 1.4, 0.8, 24);
+      fadeOut("#s1", 5.7, 0.5);
+
+      // ---------- S2 (6–12.4) ----------
+      tl.set("#s2", { opacity: 1 }, 6.0);
+      rise("#s2h", 6.3);
+      const b2 = { v: 0 };
+      const s2fill = document.getElementById("s2fill"), s2pct = document.getElementById("s2pct");
+      counter(b2, "v", 100, 2.0, 6.8, E.inout, () => { s2fill.style.width = b2.v + "%"; s2pct.textContent = Math.round(b2.v) + "%"; });
+      // snap to 80, mark the forbidden zone and the allowed band
+      counter(b2, "v", 80, 0.6, 9.0, E.inout, () => { s2fill.style.width = b2.v + "%"; s2pct.textContent = Math.round(b2.v) + "%"; });
+      tl.to("#s2hatch", { opacity: 1, width: 864 * 0.8, duration: 0.6, ease: E.out }, 9.0);
+      rise("#s2h2", 9.3);
+      fadeIn("#s2range", 9.7); fadeIn("#s2lock", 10.0);
+      fadeOut("#s2", 12.0, 0.45);
+
+      // ---------- S3 (12.4–17.5) ----------
+      tl.set("#s3", { opacity: 1 }, 12.4);
+      rise("#s3h", 12.6);
+      const b3 = { v: 80 };
+      const s3fill = document.getElementById("s3fill"), s3pct = document.getElementById("s3pct");
+      counter(b3, "v", 1, 2.2, 13.4, "power3.inOut", () => { s3fill.style.width = b3.v + "%"; s3pct.textContent = Math.round(b3.v) + "%"; });
+      tl.to("#s3fill", { backgroundImage: "linear-gradient(90deg,#4fb2ff,#7cc8ff)", duration: 0.8 }, 13.4);
+      rise("#s3sub", 15.2, 0.7, 20);
+      fadeOut("#s3", 17.1, 0.45);
+
+      // ---------- S4 (17.5–27.2) ----------
+      tl.set("#s4", { opacity: 1 }, 17.5);
+      rise("#s4h", 17.7);
+      tl.set("#menu", { x: 780 }, 0);
+      tl.to("#menu", { x: 0, duration: 1.0, ease: E.out }, 17.9);
+      fadeIn("#b60", 18.3); fadeIn("#b70", 18.5);
+      const g = { v: 55 };
+      const s4fill = document.getElementById("s4fill"), s4pct = document.getElementById("s4pct");
+      const gUpd = () => { s4fill.style.width = g.v + "%"; s4pct.textContent = Math.round(g.v) + "%"; };
+      fadeIn("#s4state", 18.4);
+      counter(g, "v", 70, 2.4, 18.4, E.inout, gUpd);
+      tl.to("#hlSail", { opacity: 1, duration: 0.5 }, 19.0);
+      tl.to("#s4state", { opacity: 0, duration: 0.3 }, 20.9);
+      tl.fromTo("#s4hold", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.5, ease: E.back }, 21.0);
+      // unplugged: drifts down to 60 with the limit following
+      tl.to("#s4bat", { opacity: 1, duration: 0.4 }, 22.0);
+      counter(g, "v", 60, 2.2, 22.2, "power1.inOut", gUpd);
+      tl.to("#s4fill", { backgroundImage: "linear-gradient(90deg,#4fb2ff,#7cc8ff)", duration: 0.5 }, 22.2);
+      // plugged back in at 60: recharge to 70
+      tl.to("#s4hold", { opacity: 0, duration: 0.3 }, 24.6);
+      tl.to("#s4fill", { backgroundImage: "linear-gradient(90deg,#2ecc71,#30d158)", duration: 0.5 }, 24.8);
+      counter(g, "v", 70, 1.8, 24.8, E.inout, gUpd);
+      tl.to("#hlSail", { opacity: 0, duration: 0.4 }, 26.6);
+      fadeOut("#s4", 26.8, 0.45);
+
+      // ---------- S5 (27.2–31.5) ----------
+      tl.set("#s5", { opacity: 1 }, 27.2);
+      rise("#s5h", 27.4);
+      tl.to("#hlHeat", { opacity: 1, duration: 0.5 }, 27.8);
+      const th = { v: 28 };
+      const merc = document.getElementById("merc"), s5temp = document.getElementById("s5temp");
+      counter(th, "v", 36, 2.0, 27.8, E.inout, () => { merc.style.height = (20 + (th.v - 20) * 3.2) + "%"; s5temp.textContent = Math.round(th.v) + "°"; });
+      tl.to("#s5bolt", { opacity: 0, scale: 0.6, duration: 0.3 }, 29.4);
+      tl.fromTo("#s5pause", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.4, ease: E.back }, 29.45);
+      tl.to("#s5temp", { color: "#ff9f0a", duration: 0.3 }, 29.4);
+      rise("#s5lbl", 29.7, 0.5, 16);
+      tl.to("#menu", { x: 780, duration: 0.7, ease: "power2.in" }, 31.2);
+      fadeOut("#s5", 31.1, 0.45);
+
+      // ---------- S6 (31.5–39.6) ----------
+      tl.set("#s6", { opacity: 1 }, 31.5);
+      rise("#s6h", 31.7);
+      tl.fromTo("#chip", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.8, ease: E.back }, 32.2);
+      tl.fromTo("#sat1", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: E.out }, 34.4);
+      tl.fromTo("#sat2", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: E.out }, 35.6);
+      tl.fromTo("#sat3", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: E.out }, 36.9);
+      tl.to("#chip", { boxShadow: "0 0 110px rgba(79,178,255,0.55)", duration: 1.2, ease: "sine.inOut", repeat: 3, yoyo: true }, 33.0);
+      rise("#s6sub", 37.6, 0.6, 16);
+      fadeOut("#s6", 39.2, 0.45);
+
+      // ---------- S7 (39.6–46.6) ----------
+      tl.set("#s7", { opacity: 1 }, 39.6);
+      rise("#s7h", 39.8);
+      tl.set("#setup", { y: 1090 }, 0);
+      tl.to("#setup", { y: 0, duration: 1.1, ease: E.out }, 39.9);
+      rise("#s7l1", 41.0, 0.5, 20); tl.to("#hlCompat", { opacity: 1, duration: 0.4 }, 41.0);
+      rise("#s7l2", 42.8, 0.5, 20); tl.to("#hlCompat", { opacity: 0, duration: 0.3 }, 42.8); tl.to("#hlHelper", { opacity: 1, duration: 0.4 }, 42.9);
+      rise("#s7l3", 44.6, 0.5, 20); tl.to("#hlHelper", { opacity: 0, duration: 0.3 }, 44.6); tl.to("#hlTest", { opacity: 1, duration: 0.4 }, 44.7);
+      fadeOut("#s7", 46.2, 0.45);
+
+      // ---------- S8 (46.6–53) ----------
+      tl.set("#s8", { opacity: 1 }, 46.6);
+      rise("#s8h", 46.8); rise("#s8s", 47.0);
+      const cmdText = "brew install --cask jiraffekiller/tap/sail-battery";
+      const typer = { n: 0 };
+      const cmd = document.getElementById("cmd");
+      counter(typer, "n", cmdText.length, 2.2, 47.4, "none", () => { cmd.textContent = cmdText.slice(0, Math.round(typer.n)); });
+      tl.to("#caret", { opacity: 0, duration: 0.01, repeat: 11, yoyo: true, repeatDelay: 0.45 }, 46.8);
+      tl.to("#caret", { opacity: 0, duration: 0.01 }, 49.8);
+      tl.to("#ok", { opacity: 1, duration: 0.4 }, 49.9);
+      rise("#s8url", 50.4, 0.6, 20);
+      fadeOut("#s8", 52.4, 0.6);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
