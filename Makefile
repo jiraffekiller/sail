@@ -13,7 +13,7 @@ BIN        := .build/$(CONF)
 OUT        := build/$(APP).app
 CONTENTS   := $(OUT)/Contents
 
-.PHONY: all build bundle test run install install-app install-helper uninstall clean log status icon
+.PHONY: all build bundle test run install install-app install-helper uninstall clean log status icon dmg
 
 all: bundle
 
@@ -69,6 +69,18 @@ uninstall:
 
 log:
 	/usr/bin/log stream --style compact --predicate 'subsystem == "$(BUNDLE_ID)"'
+
+# Disk image with the usual "drag to Applications" window. Needs `brew install create-dmg`.
+VERSION := $(shell /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)
+DMG     := build/$(APP)-v$(VERSION).dmg
+dmg: bundle
+	rm -rf build/dmg-src "$(DMG)"
+	mkdir -p build/dmg-src && cp -R "$(OUT)" build/dmg-src/
+	create-dmg --volname "$(APP)" --volicon Resources/AppIcon.icns \
+		--background Resources/dmg-background.png --window-pos 200 120 --window-size 660 400 \
+		--icon-size 128 --text-size 14 --icon "$(APP).app" 165 190 --hide-extension "$(APP).app" \
+		--app-drop-link 495 190 --no-internet-enable "$(DMG)" build/dmg-src/
+	@echo "built $(DMG)"
 
 # Regenerate Resources/AppIcon.icns from scripts/make-icon.swift.
 icon:

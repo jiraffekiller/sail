@@ -46,8 +46,8 @@ With [Homebrew](https://brew.sh):
 brew install --cask jiraffekiller/tap/sail-battery
 ```
 
-Or download `Sail-vX.Y.Z.zip` from [Releases](../../releases), unzip and move `Sail.app`
-to `/Applications`.
+Or download **`Sail-vX.Y.Z.dmg`** from [Releases](../../releases), open it and drag Sail to
+Applications. (The green *Code → Download ZIP* button gives you the source code, not the app.)
 
 The build is ad-hoc signed, not notarized, so macOS blocks the first launch. Allow it
 under System Settings → Privacy & Security → *Open Anyway*, or clear the quarantine flag
