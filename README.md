@@ -43,15 +43,19 @@ or locked on current firmware. See [docs/DESIGN.md](docs/DESIGN.md) for the meas
 With [Homebrew](https://brew.sh):
 
 ```bash
-brew install --cask jiraffekiller/tap/sail
+brew install --cask jiraffekiller/tap/sail-battery
 ```
 
 Or download `Sail-vX.Y.Z.zip` from [Releases](../../releases), unzip and move `Sail.app`
 to `/Applications`.
 
-The build is ad-hoc signed, not notarized, so macOS refuses the first launch: allow it
-under System Settings → Privacy & Security → *Open Anyway*. Homebrew users can skip that
-with `brew install --cask --no-quarantine jiraffekiller/tap/sail`.
+The build is ad-hoc signed, not notarized, so macOS blocks the first launch. Allow it
+under System Settings → Privacy & Security → *Open Anyway*, or clear the quarantine flag
+once:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Sail.app
+```
 
 The Setup window walks through the rest: it installs the privileged helper (one
 administrator password), checks the settings that conflict with a charge limit, enables
@@ -94,7 +98,7 @@ Please paste the `--status` output into bug reports.
 
 ## Uninstall
 
-`brew uninstall --cask sail` (add `--zap` to delete settings too), `make uninstall` from a
+`brew uninstall --cask sail-battery` (add `--zap` to delete settings too), `make uninstall` from a
 source checkout, or by hand: quit Sail, delete `/Applications/Sail.app`,
 `~/Library/LaunchAgents/com.jiraffekiller.sail.agent.plist`, and run
 `sudo sh /Applications/Sail.app/Contents/Resources/uninstall-helper.sh` before deleting the app.
