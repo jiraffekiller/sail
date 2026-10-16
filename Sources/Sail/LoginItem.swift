@@ -31,12 +31,26 @@ enum LoginItem {
             "KeepAlive": ["SuccessfulExit": false],
             "ProcessType": "Interactive",
             "LimitLoadToSessionType": "Aqua",
+            // Lets System Settings > Login Items show this job as "Sail" with the app icon.
+            "AssociatedBundleIdentifiers": [SailIDs.appBundleID],
         ]
         let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
         try FileManager.default.createDirectory(at: plistURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try data.write(to: plistURL, options: .atomic)
-        // Load it now; the launchd-spawned instance takes over from this one.
-        _ = launchctl(["bootstrap", "gui/\(getuid())", plistURL.path])
+        reload()
+    }
+
+    /// (Re)loads the agent so launchd picks up the plist. Runs detached, because when the
+    /// caller is the agent instance itself, `bootout` kills it before `bootstrap` could run.
+    private static func reload() {
+        let uid = getuid()
+        let script = "sleep 1; /bin/launchctl bootout gui/\(uid)/\(SailIDs.agentLabel) 2>/dev/null; /bin/launchctl bootstrap gui/\(uid) '\(plistURL.path)'"
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/sh")
+        p.arguments = ["-c", script]
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        try? p.run()
     }
 
     /// Removing the plist is enough: nothing loads at next login, and a normal Quit is not

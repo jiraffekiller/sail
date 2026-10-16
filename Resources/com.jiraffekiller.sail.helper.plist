@@ -18,5 +18,9 @@
 	</dict>
 	<key>ProcessType</key>
 	<string>Background</string>
+	<key>AssociatedBundleIdentifiers</key>
+	<array>
+		<string>com.jiraffekiller.sail</string>
+	</array>
 </dict>
 </plist>
