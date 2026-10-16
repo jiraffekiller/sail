@@ -1,17 +1,25 @@
 import Foundation
+import ServiceManagement
 import SailCore
 
-/// Launch-at-login via a per-user LaunchAgent that launchd supervises: RunAtLoad starts
-/// the app at login, KeepAlive/SuccessfulExit=false restarts it after a crash but not
-/// after a normal Quit. The agent passes `--agent`, which makes that instance the
+/// Launch-at-login via `SMAppService.agent`: the LaunchAgent plist ships inside the app
+/// bundle (Contents/Library/LaunchAgents), so System Settings lists the job under the app
+/// with its icon, and launchd supervises it (RunAtLoad, restart after a crash but not
+/// after a normal Quit). The agent runs with `--agent`, which makes that instance the
 /// authoritative one (see AppDelegate.enforceSingleInstance).
 enum LoginItem {
-    static var plistURL: URL {
+    private static let plistName = "\(SailIDs.agentLabel).plist"
+    private static var service: SMAppService { .agent(plistName: plistName) }
+
+    /// Plist location used by versions before SMAppService; removed on first enable.
+    private static var legacyPlistURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/LaunchAgents/\(SailIDs.agentLabel).plist")
+            .appendingPathComponent("Library/LaunchAgents/\(plistName)")
     }
 
-    static var isEnabled: Bool { FileManager.default.fileExists(atPath: plistURL.path) }
+    static var status: SMAppService.Status { service.status }
+    static var isEnabled: Bool { status == .enabled }
+    static var requiresApproval: Bool { status == .requiresApproval }
 
     /// The agent must point at a stable location, so this is only offered once the app
     /// lives in /Applications.
@@ -20,54 +28,35 @@ enum LoginItem {
     }
 
     static func enable() throws {
-        guard isInstalledInApplications, let exe = Bundle.main.executableURL else {
+        guard isInstalledInApplications else {
             throw NSError(domain: SailIDs.appBundleID, code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "Move \(SailIDs.appName).app to /Applications first."])
         }
-        let plist: [String: Any] = [
-            "Label": SailIDs.agentLabel,
-            "ProgramArguments": [exe.path, "--agent"],
-            "RunAtLoad": true,
-            "KeepAlive": ["SuccessfulExit": false],
-            "ProcessType": "Interactive",
-            "LimitLoadToSessionType": "Aqua",
-            // Lets System Settings > Login Items show this job as "Sail" with the app icon.
-            "AssociatedBundleIdentifiers": [SailIDs.appBundleID],
-        ]
-        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-        try FileManager.default.createDirectory(at: plistURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try data.write(to: plistURL, options: .atomic)
-        reload()
+        removeLegacyAgent()
+        try service.register()
     }
 
-    /// (Re)loads the agent so launchd picks up the plist. Runs detached, because when the
-    /// caller is the agent instance itself, `bootout` kills it before `bootstrap` could run.
-    private static func reload() {
-        let uid = getuid()
-        let script = "sleep 1; /bin/launchctl bootout gui/\(uid)/\(SailIDs.agentLabel) 2>/dev/null; /bin/launchctl bootstrap gui/\(uid) '\(plistURL.path)'"
+    static func disable() {
+        removeLegacyAgent()
+        try? service.unregister()
+    }
+
+    static func openSystemSettings() {
+        SMAppService.openSystemSettingsLoginItems()
+    }
+
+    /// Unloads and deletes a ~/Library/LaunchAgents plist left by older builds, before the
+    /// SMAppService job with the same label is registered. Synchronous on purpose: a
+    /// detached unload would race the new registration and remove it too.
+    private static func removeLegacyAgent() {
+        guard FileManager.default.fileExists(atPath: legacyPlistURL.path) else { return }
+        try? FileManager.default.removeItem(at: legacyPlistURL)
         let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/bin/sh")
-        p.arguments = ["-c", script]
+        p.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        p.arguments = ["bootout", "gui/\(getuid())/\(SailIDs.agentLabel)"]
         p.standardOutput = FileHandle.nullDevice
         p.standardError = FileHandle.nullDevice
         try? p.run()
-    }
-
-    /// Removing the plist is enough: nothing loads at next login, and a normal Quit is not
-    /// restarted. The currently loaded job is left alone so the running app survives.
-    static func disable() {
-        try? FileManager.default.removeItem(at: plistURL)
-    }
-
-    @discardableResult
-    static func launchctl(_ args: [String]) -> Int32 {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        p.arguments = args
-        p.standardOutput = FileHandle.nullDevice
-        p.standardError = FileHandle.nullDevice
-        do { try p.run() } catch { return -1 }
         p.waitUntilExit()
-        return p.terminationStatus
     }
 }

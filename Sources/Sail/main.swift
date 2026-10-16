@@ -14,7 +14,7 @@ if let i = args.firstIndex(of: "--login-item") {
     case "off":
         LoginItem.disable(); print("launch at login disabled")
     default:
-        print(LoginItem.isEnabled ? "enabled" : "disabled")
+        print(LoginItem.isEnabled ? "enabled" : (LoginItem.requiresApproval ? "requires approval in System Settings" : "disabled"))
     }
     exit(0)
 }

@@ -165,13 +165,19 @@ struct SetupView: View {
 
     private var loginCard: some View {
         Card {
-            Row(ok: model.loginEnabled, title: "Launch at login",
-                detail: LoginItem.isInstalledInApplications || model.loginEnabled
-                    ? "Kept alive by launchd, restarted after a crash"
-                    : "Move \(SailIDs.appName).app to /Applications to enable") {
-                Toggle("", isOn: Binding(get: { model.loginEnabled }, set: { model.setLogin($0) }))
-                    .toggleStyle(.switch).labelsHidden()
-                    .disabled(!(LoginItem.isInstalledInApplications || model.loginEnabled))
+            Row(ok: model.loginEnabled ? true : (LoginItem.requiresApproval ? false : nil), title: "Launch at login",
+                detail: LoginItem.requiresApproval
+                    ? "Allow \(SailIDs.appName) under System Settings → Login Items"
+                    : (LoginItem.isInstalledInApplications || model.loginEnabled
+                        ? "Kept alive by launchd, restarted after a crash"
+                        : "Move \(SailIDs.appName).app to /Applications to enable")) {
+                if LoginItem.requiresApproval {
+                    Button("Open Login Items") { LoginItem.openSystemSettings() }
+                } else {
+                    Toggle("", isOn: Binding(get: { model.loginEnabled }, set: { model.setLogin($0) }))
+                        .toggleStyle(.switch).labelsHidden()
+                        .disabled(!(LoginItem.isInstalledInApplications || model.loginEnabled))
+                }
             }
         }
     }

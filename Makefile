@@ -25,11 +25,12 @@ test:
 
 bundle: build
 	rm -rf "$(OUT)"
-	mkdir -p "$(CONTENTS)/MacOS" "$(CONTENTS)/Resources"
+	mkdir -p "$(CONTENTS)/MacOS" "$(CONTENTS)/Resources" "$(CONTENTS)/Library/LaunchAgents"
 	cp "$(BIN)/$(APP)" "$(CONTENTS)/MacOS/$(APP)"
 	cp "$(BIN)/SailHelper" "$(CONTENTS)/MacOS/SailHelper"
 	cp Resources/Info.plist "$(CONTENTS)/Info.plist"
 	cp Resources/$(HELPER).plist Resources/AppIcon.icns scripts/install-helper.sh scripts/uninstall-helper.sh "$(CONTENTS)/Resources/"
+	cp Resources/$(AGENT).plist "$(CONTENTS)/Library/LaunchAgents/"
 	codesign --force -s - --identifier $(HELPER) "$(CONTENTS)/MacOS/SailHelper"
 	codesign --force -s - --identifier $(BUNDLE_ID) "$(OUT)"
 	@echo "built $(OUT)"
@@ -53,13 +54,14 @@ install-app: bundle
 	rm -rf "/Applications/$(APP).app"
 	cp -R "$(OUT)" /Applications/
 	@if "/Applications/$(APP).app/Contents/MacOS/$(APP)" --login-item status | grep -q enabled; then \
-		launchctl kickstart gui/$$(id -u)/$(AGENT); else open "/Applications/$(APP).app"; fi
+		launchctl kickstart gui/$$(id -u)/$(AGENT) || open "/Applications/$(APP).app"; else open "/Applications/$(APP).app"; fi
 
 install-helper:
 	sudo sh scripts/install-helper.sh "Resources/$(HELPER).plist" "$(BIN)/SailHelper"
 
 uninstall:
 	-pkill -x $(APP) 2>/dev/null
+	-"/Applications/$(APP).app/Contents/MacOS/$(APP)" --login-item off 2>/dev/null
 	-launchctl bootout gui/$$(id -u)/$(AGENT) 2>/dev/null
 	rm -f "$$HOME/Library/LaunchAgents/$(AGENT).plist"
 	sudo sh scripts/uninstall-helper.sh

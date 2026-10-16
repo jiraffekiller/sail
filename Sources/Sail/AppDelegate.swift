@@ -3,7 +3,9 @@ import SailCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// True for the launchd-spawned copy: either our explicit flag or launchd's own marker.
     let isAgent = CommandLine.arguments.contains("--agent")
+        || ProcessInfo.processInfo.environment["XPC_SERVICE_NAME"] == SailIDs.agentLabel
     private var reconciler: Reconciler!
     private var statusMenu: StatusMenu!
     private var setup: SetupWindowController!

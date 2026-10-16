@@ -220,10 +220,18 @@ missing or broken.
   and enables the LaunchAgent.
 - Helper is installed the classic way (binary in /Library/PrivilegedHelperTools, plist in
   /Library/LaunchDaemons, on-demand via MachServices) rather than SMAppService, so it does
-  not depend on the Login Items approval flow or on a Developer ID signature.
-- The app is supervised by a per-user LaunchAgent (`RunAtLoad`, `KeepAlive.SuccessfulExit =
-  false`): restarted after a crash, not after Quit. The launchd copy runs with `--agent` and
-  takes over from any manually launched copy.
+  not depend on the Login Items approval flow or on a Developer ID signature. Its Login
+  Items entry therefore keeps a generic icon; `AssociatedBundleIdentifiers` only fixes the name.
+- The app is supervised by a LaunchAgent registered through `SMAppService.agent` with the
+  plist inside the bundle (`Contents/Library/LaunchAgents`), `RunAtLoad` and
+  `KeepAlive.SuccessfulExit = false`: restarted after a crash, not after Quit. Registering
+  through SMAppService (rather than dropping a plist into ~/Library/LaunchAgents) is what
+  makes System Settings > Login Items show the job under the app with its icon; plist-file
+  agents are classified "legacy" by backgroundtaskmanagementd and get a generic icon. The
+  launchd copy runs with `--agent` and takes over from any manually launched copy.
+- Gotcha: unloading a legacy agent with the same label must finish before `register()`;
+  a detached `launchctl bootout` racing the registration removes the new job too, and
+  registering while the stale BTM record still exists fails with "Operation not permitted".
 - Verified live: helper XPC round trip, limit write 79 -> 80 through the reconciler within
   12 s of launch, agent handoff, restart after `kill -9`.
 - Gotcha: `log` is a zsh builtin; use `/usr/bin/log show --predicate 'subsystem == "com.jiraffekiller.sail"'`.
