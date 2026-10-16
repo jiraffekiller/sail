@@ -10,7 +10,23 @@ It lives in the menu bar, starts at login, is restarted by launchd if it ever cr
 the limit it sets survives sleep, lid close and the app not running, because it is enforced
 by macOS itself.
 
-<!-- screenshot: docs/menu.png -->
+<p align="center">
+  <img src="docs/menu.png" width="420" alt="Sail menu: battery status, Sailing mode with Charge to and Recharge below sliders, Heat protection with a temperature slider, pause, Setup, launch at login, quit">
+</p>
+
+Everything lives in one menu. The first two lines show the battery and what Sail is
+doing right now ("holding until 60%" means the limit follows the battery down and
+charging resumes at 60%). *Charge to* and *Recharge below* are the Sailing bounds,
+*Pause above* is the heat threshold. "Charge to 100% for 2 hours" suspends Sailing for a
+trip. The two Quit items differ in what they leave behind: the limit, or a normal
+charge to full.
+
+<p align="center">
+  <img src="docs/setup.png" width="420" alt="Setup window with compatibility checks, helper installation, conflicting settings, launch at login and a self-test">
+</p>
+
+The Setup window opens on first launch and from the menu. Every row is a check that can
+be re-run; the self-test writes the limit and confirms that macOS enforces it.
 
 ## Requirements
 
