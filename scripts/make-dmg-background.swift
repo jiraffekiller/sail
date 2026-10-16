@@ -22,7 +22,7 @@ let title = NSAttributedString(string: "Drag Sail to Applications", attributes: 
 title.draw(in: NSRect(x: 0, y: 320, width: W, height: 34))
 let sub = NSAttributedString(string: "Then open it once from Applications. macOS will ask you to allow it under\nSystem Settings → Privacy & Security → Open Anyway (the app is not notarized).", attributes: [
     .font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.white.withAlphaComponent(0.65), .paragraphStyle: p])
-sub.draw(in: NSRect(x: 30, y: 36, width: W - 60, height: 40))
+sub.draw(in: NSRect(x: 30, y: 78, width: W - 60, height: 40))
 NSGraphicsContext.restoreGraphicsState()
 try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[1]))
 print("wrote \(CommandLine.arguments[1])")
