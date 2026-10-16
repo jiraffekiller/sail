@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 /// True when PowerUI.framework loaded, PowerUISmartChargeClient exists and reports
-/// manual charge limit (MCL) support on this machine.
+/// manual charge limit (MCL) support on the current Mac.
 bool cpui_available(void);
 
 /// Current manual charge limit as PowerUIAgent reports it (reflects root's

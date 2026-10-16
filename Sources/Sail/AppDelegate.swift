@@ -3,7 +3,7 @@ import SailCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    /// True for the launchd-spawned copy: either our explicit flag or launchd's own marker.
+    /// True for the launchd-spawned copy: either the explicit flag or launchd's own marker.
     let isAgent = CommandLine.arguments.contains("--agent")
         || ProcessInfo.processInfo.environment["XPC_SERVICE_NAME"] == SailIDs.agentLabel
     private var reconciler: Reconciler!
